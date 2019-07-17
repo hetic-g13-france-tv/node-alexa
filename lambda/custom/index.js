@@ -7,6 +7,7 @@ const fetch = require('node-fetch')
 
 let rowData;
 let actual;
+let tutoDone = false;
 
 
 // —————————————————GOOGLE————————————————————
@@ -90,54 +91,56 @@ function getNewToken(oAuth2Client, callback) {
   });
 }
 // —————————————————GOOGLE————————————————————
-
+console.log('—————————————————')
 const {
   getSlotValue,
 } = require('ask-sdk-core');
 
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
+    console.log('In Launcher Handler')
     return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
   },
   handle(handlerInput) {
-    const speechText = 'Je peux lacher une punchline sur une équipe participant à la coupe de france.';
+    const speechText = "Bonjour et bienvenue sur Footcaviar. Ici, je peux t’apprendre à donner l’illusion d’être un connaisseur en t’apprenant quelques punchlines. ";
+    const secondSpeechText = "Comme c’est la première fois que tu utilises Footcaviar, je vais te donner un petit conseil. Tu peux me demander de répéter en disant, “Alexa répète”. Voulez-vous commencer ?";
 
     return handlerInput.responseBuilder
-      .speak(speechText)
-      .reprompt('Quelle équipe vous interesse j\'ai dit')
+      .speak(`
+        <speak>
+        <p>${speechText}</p>
+        <p>${secondSpeechText}</p>
+        </speak>
+      `)
+      .withShouldEndSession(false)
       .getResponse();
   }
 };
 
 const PunchlineIntent = {
   canHandle(handlerInput) {
+    console.log('In Punchline Intent')
     return handlerInput.requestEnvelope.request.type === 'IntentRequest'
       && handlerInput.requestEnvelope.request.intent.name === 'PunchlineIntent'
   },
   handle(handlerInput) {
-    const { slots } = handlerInput.requestEnvelope.request.intent
-    const test = getSlotValue(handlerInput.requestEnvelope, 'punchline_about_team')
-    let param = null
-    if (
-      'punchline_about_team' in slots &&
-      slots.punchline_about_team.resolutions
-    )
-    {
-      param = slots.punchline_about_team
-                .resolutions.resolutionsPerAuthority[0]
-                .values[0].value.name
+    const test = getSlotValue(handlerInput.requestEnvelope, 'yesNo') || null
+    if(test != 'oui' && tutoDone) {
+      const answer = rowData[Math.floor(Math.random() * rowData.length)]
+      rowData = rowData.filter(el => el[0] !== answer[0])
+      actual = answer
+      console.log({ actual })
+      return handlerInput.responseBuilder
+      .speak(answer[0])
+      .withShouldEndSession(false)
+      .getResponse();
+    } else {
+      tutoDone = true
+      return handlerInput.responseBuilder
+      .speak("C'est parti, pour apprendre une punchline vous pouvez dire: \"Alexa sors moi une punchline\"")
+      .withShouldEndSession(false)
+      .getResponse();
     }
-    if(param == null) {
-      console.log('no params')
-    }
-    const answer = rowData[Math.floor(Math.random() * rowData.length)]
-    rowData = rowData.filter(el => el[0] !== answer[0])
-    actual = answer
-    console.log({ actual })
-    return handlerInput.responseBuilder
-    .speak(answer[0])
-    .withShouldEndSession(false)
-    .getResponse();
   }
 }
 
@@ -148,8 +151,8 @@ const InfoIntent = {
       && handlerInput.requestEnvelope.request.intent.name === 'InfoIntent';
   },
   handle(handlerInput) {
-    console.log(actual + 'lol')
-    const res = actual.length > 0 ? actual[1] : "Il n'y a pas d'informations."
+    console.log(actual)
+    const res = actual && actual[1] ? actual[1] : "Il n'y a pas d'informations sur cette punchline."
     return handlerInput.responseBuilder
     .speak(res)
     .reprompt(res)
