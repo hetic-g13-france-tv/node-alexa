@@ -12,6 +12,7 @@
   "dependencies": {
     "ask-sdk-core": "^2.0.0",
     "ask-sdk-model": "^1.0.0",
+    "googleapis": "^39.2.0",
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {
