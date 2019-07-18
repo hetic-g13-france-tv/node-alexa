@@ -6,6 +6,7 @@ const Alexa = require('ask-sdk-core');
 const fetch = require('node-fetch')
 
 let rowData;
+let rowDataLength;
 let actual;
 let tutoDone = false;
 
@@ -37,6 +38,7 @@ fs.readFile('credentials.json', (err, content) => {
       const rows = res.data.values;
       rowData = rows;
       rowData = rowData.filter(el => el[0] != undefined || el != '')
+      rowDataLength = rowData.length
     });
   });
 });
@@ -102,7 +104,7 @@ const LaunchRequestHandler = {
     return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
   },
   handle(handlerInput) {
-    const speechText = "Bonjour et bienvenue sur Footcaviar. Ici, je peux t’apprendre à donner l’illusion d’être un connaisseur en t’apprenant quelques punchlines. ";
+    const speechText = "Bonjour et bienvenue sur Footcaviar. Ici, génère ta punchline. ";
     const secondSpeechText = "Comme c’est la première fois que tu utilises Footcaviar, je vais te donner un petit conseil. Tu peux me demander de répéter en disant, “Alexa répète”. Voulez-vous commencer ?";
 
     return handlerInput.responseBuilder
@@ -125,19 +127,42 @@ const PunchlineIntent = {
   },
   handle(handlerInput) {
     const test = getSlotValue(handlerInput.requestEnvelope, 'yesNo') || null
-    if(test != 'oui' && tutoDone) {
-      const answer = rowData[Math.floor(Math.random() * rowData.length)]
+    // console.log("yesNo" in handlerInput.requestEnvelope.request.intent.slots)
+    if(!tutoDone && test == 'oui') {
+      tutoDone = true
+      return handlerInput.responseBuilder
+      .speak(`
+      <speak>
+        <say-as interpret-as="interjection">
+          C'est parti !
+        </say-as>
+        Pour apprendre une punchline vous pouvez dire: <say-as interpret-as="interjection">"Alexa !</say-as> sors moi une punchline"
+      </speak>
+      `)
+      .withShouldEndSession(false)
+      .getResponse();
+    } else {
+      let answer
+      if(rowData.length === rowDataLength) {
+        answer = rowData[0]
+      } else {
+        answer = rowData[Math.floor(Math.random() * rowData.length)]
+      }
       rowData = rowData.filter(el => el[0] !== answer[0])
       actual = answer
       console.log({ actual })
       return handlerInput.responseBuilder
-      .speak(answer[0])
-      .withShouldEndSession(false)
-      .getResponse();
-    } else {
-      tutoDone = true
-      return handlerInput.responseBuilder
-      .speak("C'est parti, pour apprendre une punchline vous pouvez dire: \"Alexa sors moi une punchline\"")
+      .speak(`
+        <speak>
+          <p>La punchline que tu peux ressortir facilement est :<break time="250ms"/> "${answer[0]}"</p>
+          <p>Est-ce que tu veux connaitre la définition, la partager sur Facebook ou découvrir une nouvelle punchline ?</p>
+        </speak>
+        `)
+      .reprompt(`
+      <speak>
+        <p>La punchline que tu peux ressortir facilement est :<break time="250ms"/> "${answer[0]}"</p>
+      </speak>
+      `)
       .withShouldEndSession(false)
       .getResponse();
     }
@@ -148,14 +173,15 @@ const PunchlineIntent = {
 const InfoIntent = {
   canHandle(handlerInput) {
     return handlerInput.requestEnvelope.request.type === 'IntentRequest'
-      && handlerInput.requestEnvelope.request.intent.name === 'InfoIntent';
+    && handlerInput.requestEnvelope.request.intent.name === 'InfoIntent';
   },
   handle(handlerInput) {
     console.log(actual)
-    const res = actual && actual[1] ? actual[1] : "Il n'y a pas d'informations sur cette punchline."
+    const res = actual && actual[1] ? actual[1] : "Il n'y a pas d'informations sur cette punchline. Veux tu découvrir une nouvelle punchline ?"
     return handlerInput.responseBuilder
     .speak(res)
-    .reprompt(res)
+    .reprompt('Veux tu découvrir une nouvelle punchline ?')
+    .withShouldEndSession(false)
     .getResponse();
   }
 };
